@@ -1,7 +1,8 @@
 const express = require("express");
 const User = require("../models/user");
 const router = new express.Router();
-router.get("/users", async (req, res) => {
+const auth = require("../middleware/auth");
+router.get("/users", auth, async (req, res) => {
   try {
     const result = await User.find({});
     res.send(result);
@@ -34,10 +35,20 @@ router.get("/users/:id", async (req, res) => {
 router.post("/users", async (req, res) => {
   const user = new User(req.body);
   try {
-    await user.save();
-    res.send(req.body);
+    const token = await user.GenerateAuthToken();
+    res.send({ user, token });
   } catch (e) {
     res.status(400).send(e);
+  }
+});
+
+router.post("/users/login", async (req, res) => {
+  try {
+    const user = await User.findByLoginInfo(req.body.email, req.body.password);
+    const token = await user.GenerateAuthToken();
+    res.send({ user, token });
+  } catch (e) {
+    res.status(400).send({ error: "Wrong Username/Password" });
   }
 });
 
@@ -59,7 +70,7 @@ router.delete("/users/:id", async (req, res) => {
 router.patch("/users/:id", async (req, res) => {
   const _id = req.params.id;
   const reqKeys = Object.keys(req.body);
-  const allowedKeys = ["name", "email", "age"];
+  const allowedKeys = ["name", "email", "age", "password"];
   const isValid = reqKeys.every((element) => allowedKeys.includes(element));
   if (!isValid) {
     res.status(400).send({
@@ -67,13 +78,19 @@ router.patch("/users/:id", async (req, res) => {
     });
   }
   try {
-    const user = await User.findByIdAndUpdate(_id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    // const user = await User.findByIdAndUpdate(_id, req.body, {
+    //   new: true,
+    //   runValidators: true,
+    // });
+    const user = await User.findById(_id);
     if (!user) {
-      res.status(404).send();
+      return res.status(404).send();
     }
+
+    reqKeys.forEach((update) => {
+      user[update] = req.body[update];
+    });
+    await user.save();
     res.send(user);
   } catch (e) {
     res.status(500).send(e);

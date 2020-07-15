@@ -1,7 +1,8 @@
 const mongoose = require("mongoose");
 const check = require("validator");
-
-const User = mongoose.model("users", {
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const userSchema = mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -10,6 +11,7 @@ const User = mongoose.model("users", {
   email: {
     type: String,
     lowercase: true,
+    unique: true,
     trim: true,
     required: true,
     validate(value) {
@@ -31,7 +33,54 @@ const User = mongoose.model("users", {
       }
     },
   },
+  tokens: [
+    {
+      token: {
+        type: String,
+        required: true,
+      },
+    },
+  ],
 });
+
+//this is static method means common method for all instance (Belongs to the class)
+userSchema.statics.findByLoginInfo = async (email, password) => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new Error("Unable to login "); //not present in database for this email
+  }
+
+  const isCorrect = await bcrypt.compare(password, user.password);
+  if (isCorrect) {
+    return user;
+  }
+  throw new Error("Unable to login"); //Wrong password
+};
+
+//this method can used by object of class / instance of class
+
+userSchema.methods.GenerateAuthToken = async function () {
+  const user = this;
+  const token = jwt.sign({ _id: user._id.toString() }, "mysecret", {
+    expiresIn: "2 days",
+  }); //generated token for the data
+
+  //now append that in tokens field in schema (multidevice support)
+  user.tokens = user.tokens.concat({ token });
+  await user.save();
+
+  return token;
+};
+
+userSchema.pre("save", async function (next) {
+  const user = this;
+  if (user.isModified("password")) {
+    user.password = await bcrypt.hash(user.password, 8);
+  }
+  next();
+});
+
+const User = mongoose.model("users", userSchema);
 
 //this will cause error because of rules we introducted in model of user
 // const badUser = new User({

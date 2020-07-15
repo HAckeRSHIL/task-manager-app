@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const check = require("validator");
-
-const Task = mongoose.model("tasks", {
+const bcrypt = require("bcryptjs");
+const taskSchema = mongoose.Schema({
   description: {
     type: String,
     required: true,
@@ -11,6 +11,16 @@ const Task = mongoose.model("tasks", {
     required: true,
   },
 });
+
+taskSchema.pre("save", async function (next) {
+  const task = this;
+  if (task.isModified("description")) {
+    task.description = await bcrypt.hash(task.description, 8);
+  }
+  next();
+});
+
+const Task = mongoose.model("tasks", taskSchema);
 
 // const myFirstTask = new task({
 //   description: "Add a anchor",
