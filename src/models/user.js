@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const check = require("validator");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const userSchema = mongoose.Schema({
+const userSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -42,7 +42,13 @@ const userSchema = mongoose.Schema({
     },
   ],
 });
-
+userSchema.methods.toJSON = function () {
+  const user = this;
+  const userObj = user.toObject();
+  delete userObj.password;
+  delete userObj.tokens;
+  return userObj;
+};
 //this is static method means common method for all instance (Belongs to the class)
 userSchema.statics.findByLoginInfo = async (email, password) => {
   const user = await User.findOne({ email });

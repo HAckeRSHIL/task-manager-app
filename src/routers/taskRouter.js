@@ -26,22 +26,26 @@ router.get("/tasks", async (req, res) => {
 });
 
 router.patch("/tasks/:id", async (req, res) => {
+  console.log(req.body);
   const _id = req.params.id;
   const reqKeys = Object.keys(req.body);
   const allowedKeys = ["description", "completed"];
   const isValid = reqKeys.every((element) => allowedKeys.includes(element));
   if (!isValid) {
     res.status(400).send({
-      error: "You tried to change something which we don't have.",
+      error: "Wrong/Unauthorized Changes. ",
     });
   }
   try {
-    const task = await Task.findByIde(_id);
+    const task = await Task.findById(_id);
 
     if (!task) {
       res.status(404).send();
     }
-    reqKeys.forEach((update) => (task[update] = req.body.update));
+
+    reqKeys.forEach((update) => {
+      task[update] = req.body[update];
+    });
     await task.save();
     res.send(task);
   } catch (e) {

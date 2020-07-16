@@ -1,10 +1,11 @@
 const mongoose = require("mongoose");
 const check = require("validator");
 const bcrypt = require("bcryptjs");
-const taskSchema = mongoose.Schema({
+const taskSchema = new mongoose.Schema({
   description: {
     type: String,
     required: true,
+    trim: true,
   },
   completed: {
     type: Boolean,

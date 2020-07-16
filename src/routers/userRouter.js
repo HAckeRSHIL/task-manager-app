@@ -4,7 +4,6 @@ const router = new express.Router();
 const auth = require("../middleware/auth");
 router.get("/users", async (req, res) => {
   try {
-    console.log("body " + req.body);
     const result = await User.find({}); //fetch all users
     res.send(result);
   } catch (e) {
@@ -17,6 +16,30 @@ router.get("/users", async (req, res) => {
   //     .catch((error) => {
   //       res.status(500).send(error);
   //     });
+});
+
+router.post("/users/logout", auth, async (req, res) => {
+  try {
+    console.log("deleting the token ", req.token);
+    req.user.tokens = req.user.tokens.filter((token) => {
+      return token.token !== req.token;
+    });
+    await req.user.save();
+    res.send();
+  } catch (e) {
+    console.log(e);
+    res.status(500).send();
+  }
+});
+
+router.post("/users/logoutAll", auth, async (req, res) => {
+  try {
+    req.user.tokens = [];
+    await req.user.save();
+    res.send();
+  } catch (e) {
+    res.status(500).send();
+  }
 });
 
 router.get("/users/me", auth, async (req, res) => {
@@ -41,7 +64,7 @@ router.post("/users", async (req, res) => {
   const user = new User(req.body);
   try {
     const token = await user.GenerateAuthToken();
-    res.send({ user, token });
+    res.status(201).send({ user, token });
   } catch (e) {
     res.status(400).send(e);
   }
@@ -51,29 +74,24 @@ router.post("/users/login", async (req, res) => {
   try {
     const user = await User.findByLoginInfo(req.body.email, req.body.password);
     const token = await user.GenerateAuthToken();
+    //  const userRes = user.onlyPublic();
+    //console.log(userRes);
     res.send({ user, token });
   } catch (e) {
     res.status(400).send({ error: "Wrong Username/Password" });
   }
 });
 
-router.delete("/users/:id", async (req, res) => {
-  const _id = req.params.id;
-
+router.delete("/users/me", auth, async (req, res) => {
   try {
-    const result = await User.findByIdAndDelete(_id);
-    console.log(result);
-    if (!result) {
-      res.status(404).send();
-    }
-    res.send(result);
+    await req.user.remove();
+    res.status(200);
   } catch (e) {
     res.status(500).send(e);
   }
 });
 
-router.patch("/users/:id", async (req, res) => {
-  const _id = req.params.id;
+router.patch("/users/me", auth, async (req, res) => {
   const reqKeys = Object.keys(req.body);
   const allowedKeys = ["name", "email", "age", "password"];
   const isValid = reqKeys.every((element) => allowedKeys.includes(element));
@@ -87,17 +105,13 @@ router.patch("/users/:id", async (req, res) => {
     //   new: true,
     //   runValidators: true,
     // });
-    const user = await User.findById(_id);
-    if (!user) {
-      return res.status(404).send();
-    }
-
     reqKeys.forEach((update) => {
-      user[update] = req.body[update];
+      req.user[update] = req.body[update];
     });
-    await user.save();
-    res.send(user);
+    await req.user.save();
+    res.send(req.user);
   } catch (e) {
+    console.log(e);
     res.status(500).send(e);
   }
 });
