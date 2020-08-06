@@ -1,17 +1,26 @@
 const mongoose = require("mongoose");
 const check = require("validator");
 const bcrypt = require("bcryptjs");
-const taskSchema = new mongoose.Schema({
-  description: {
-    type: String,
-    required: true,
-    trim: true,
+const User = require("./task");
+const taskSchema = new mongoose.Schema(
+  {
+    description: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    completed: {
+      type: Boolean,
+      required: true,
+    },
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: "users",
+    },
   },
-  completed: {
-    type: Boolean,
-    required: true,
-  },
-});
+  { timestamps: true }
+);
 
 taskSchema.pre("save", async function (next) {
   const task = this;
