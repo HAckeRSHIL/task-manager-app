@@ -2,6 +2,27 @@ const express = require("express");
 const User = require("../models/user");
 const router = new express.Router();
 const auth = require("../middleware/auth");
+const multer = require("multer");
+const sharp = require("sharp");
+
+const uploadPP = multer({
+  // dest: "profiles", //location to store file //don't use if you want to save file into database
+  limits: {
+    fileSize: 1000000, //10^6 bytes = 1 MB maximum allowed size for the file
+  },
+  fileFilter(req, file, cb) {
+    if (!file.originalname.match(/\.(jpg|png|jpeg)$/)) {
+      //small regular expression for checking file extention
+      return cb(
+        new Error(
+          "Please Upload Profile Photo in approiriated format (.jpg ,.png ,.jpeg)"
+        )
+      );
+    }
+    cb(undefined, true); //undefined passed as arguments saying no error occured and true means accept the file and store it destination
+  },
+});
+
 router.get("/users", async (req, res) => {
   try {
     const result = await User.find({}); //fetch all users
@@ -16,6 +37,41 @@ router.get("/users", async (req, res) => {
   //     .catch((error) => {
   //       res.status(500).send(error);
   //     });
+});
+
+router.post(
+  "/users/me/uploadProfilePhoto",
+  auth,
+  uploadPP.single("myFile"), //here myFile is key/name of form-data for file
+  async (req, res) => {
+    req.user.profilePic = req.file.buffer;
+    await req.user.save();
+    res.send();
+  }
+);
+
+router.delete(
+  "/users/me/profilePhoto",
+  auth,
+
+  async (req, res) => {
+    req.user.profilePic = undefined;
+    await req.user.save();
+    res.send();
+  }
+);
+
+router.get("/users/:id/profilePhoto", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user || !user.profilePic) {
+      return res.status(404).send("User or Profile Photo not found");
+    }
+    res.set("Content-type", "image/jpg");
+    res.send(user.profilePic);
+  } catch (e) {
+    res.send(e);
+  }
 });
 
 router.post("/users/logout", auth, async (req, res) => {
